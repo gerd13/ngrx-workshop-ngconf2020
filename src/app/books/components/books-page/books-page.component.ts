@@ -1,5 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import {Store} from '@ngrx/store';
+import { Observable } from "rxjs";
+import {State, selectBooksEarningsTotals, selectAllBooks, selectActiveBook} from "src/app/shared/state";
 import {
   BookModel,
   calculateBooksGrossEarnings,
@@ -14,34 +16,24 @@ import {BooksPageActions, BooksApiActions} from '../../actions';
   styleUrls: ["./books-page.component.css"]
 })
 export class BooksPageComponent implements OnInit {
-  books: BookModel[] = [];
-  currentBook: BookModel | null = null;
-  total: number = 0;
+  total$: Observable<number>;
+  books$: Observable<BookModel[]>;
+  currentBook$: Observable<BookModel | undefined>;
 
   constructor(private booksService: BooksService,
-              private store: Store) {}
+              private store: Store<State>) {
+               this.total$ =  this.store.select(selectBooksEarningsTotals);
+               this.books$ = this.store.select(selectAllBooks);
+               this.currentBook$ = this.store.select(selectActiveBook);
+              }
 
   ngOnInit() {
     this.store.dispatch(BooksPageActions.enter());
-    this.getBooks();
     this.removeSelectedBook();
-  }
-
-  getBooks() {
-    this.booksService.all().subscribe(books => {
-      this.store.dispatch(BooksApiActions.booksLoaded({books}));
-      this.books = books;
-      this.updateTotals(books);
-    });
-  }
-
-  updateTotals(books: BookModel[]) {
-    this.total = calculateBooksGrossEarnings(books);
   }
 
   onSelect(book: BookModel) {
     this.store.dispatch(BooksPageActions.selectBook({bookId: book.id}));
-    this.currentBook = book;
   }
 
   onCancel() {
@@ -50,7 +42,6 @@ export class BooksPageComponent implements OnInit {
 
   removeSelectedBook() {
     this.store.dispatch(BooksPageActions.clearSelectedBook());
-    this.currentBook = null;
   }
 
   onSave(book: BookRequiredProps | BookModel) {
@@ -63,7 +54,6 @@ export class BooksPageComponent implements OnInit {
 
   saveBook(bookProps: BookRequiredProps) {
     this.booksService.create(bookProps).subscribe(() => {
-      this.getBooks();
       this.removeSelectedBook();
     });
   }
@@ -72,7 +62,6 @@ export class BooksPageComponent implements OnInit {
     this.store.dispatch(BooksPageActions.updateBook({bookId: book.id, book: book}));
     this.booksService.update(book.id, book).subscribe(() => {
       this.store.dispatch(BooksApiActions.bookUpdated({book}));
-      this.getBooks();
       this.removeSelectedBook();
     });
   }
@@ -81,7 +70,6 @@ export class BooksPageComponent implements OnInit {
     this.store.dispatch(BooksPageActions.deleteBook({bookId: book.id}));
     this.booksService.delete(book.id).subscribe(() => {
       this.store.dispatch(BooksApiActions.bookDeleted({bookId: book.id}));
-      this.getBooks();
       this.removeSelectedBook();
     });
   }
